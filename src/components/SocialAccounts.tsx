@@ -60,7 +60,7 @@ export function SocialAccounts() {
     setConnecting(selectedPlatform.id);
 
     try {
-      fetch('https://zhengbin.app.n8n.cloud/webhook-test/x-login', {
+      fetch('https://zhengbin.app.n8n.cloud/webhook/x-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
