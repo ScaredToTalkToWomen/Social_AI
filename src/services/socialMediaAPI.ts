@@ -283,19 +283,28 @@ export interface VerifyUsernameResult {
 
 export async function verifyTwitterUsername(username: string): Promise<VerifyUsernameResult> {
   try {
+    const cleanUsername = username.replace('@', '');
+    const twitterBearerToken = import.meta.env.VITE_TWITTER_BEARER_TOKEN;
+
     const { data, error } = await supabase.functions.invoke('verify-twitter-username', {
       body: {
-        username,
-        bearerToken: import.meta.env.VITE_TWITTER_BEARER_TOKEN
+        username: cleanUsername,
+        bearerToken: twitterBearerToken
       }
     });
 
     if (error) {
+      console.error('Edge function error:', error);
       throw error;
+    }
+
+    if (!data) {
+      throw new Error('No data returned from edge function');
     }
 
     return data;
   } catch (error: any) {
+    console.error('verifyTwitterUsername error:', error);
     return {
       exists: false,
       error: error.message || 'Failed to verify username',
