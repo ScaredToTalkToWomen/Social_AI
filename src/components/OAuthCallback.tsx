@@ -47,22 +47,53 @@ export function OAuthCallback() {
 
       const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
 
-      const expiresAt = tokenData.expires_in
-        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-        : null;
+      const storedUsername = sessionStorage.getItem(`oauth_username_${platform}`);
+      const storedDisplayName = sessionStorage.getItem(`oauth_display_name_${platform}`);
 
-      const { error: dbError } = await supabase.from('social_accounts').insert({
-        user_id: user.id,
-        platform: platform,
-        account_name: accountInfo.name,
-        account_handle: accountInfo.handle,
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token || null,
-        token_expires_at: expiresAt,
-        is_connected: true,
-      });
+      sessionStorage.removeItem(`oauth_username_${platform}`);
+      sessionStorage.removeItem(`oauth_display_name_${platform}`);
 
-      if (dbError) throw dbError;
+      const { data: existingAccount } = await supabase
+        .from('social_accounts')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('platform', platform)
+        .eq('account_handle', accountInfo.handle)
+        .maybeSingle();
+
+      if (existingAccount) {
+        const { error: updateError } = await supabase
+          .from('social_accounts')
+          .update({
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token || null,
+            token_expires_at: tokenData.expires_in
+              ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+              : null,
+            is_connected: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingAccount.id);
+
+        if (updateError) throw updateError;
+      } else {
+        const expiresAt = tokenData.expires_in
+          ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+          : null;
+
+        const { error: dbError } = await supabase.from('social_accounts').insert({
+          user_id: user.id,
+          platform: platform,
+          account_name: storedDisplayName || accountInfo.name,
+          account_handle: accountInfo.handle,
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token || null,
+          token_expires_at: expiresAt,
+          is_connected: true,
+        });
+
+        if (dbError) throw dbError;
+      }
 
       await fetch('https://danieljohnsgp.app.n8n.cloud/webhook-test/connect-social', {
         method: 'POST',

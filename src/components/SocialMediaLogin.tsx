@@ -18,15 +18,13 @@ interface SocialMediaLoginProps {
   onLogin: (credentials: { username: string; password: string }) => Promise<void>;
 }
 
-type FlowStep = 'search' | 'verify' | 'connect';
+type FlowStep = 'search' | 'verify';
 
-export function SocialMediaLogin({ platform, onBack, onLogin }: SocialMediaLoginProps) {
+export function SocialMediaLogin({ platform, onBack }: SocialMediaLoginProps) {
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flowStep, setFlowStep] = useState<FlowStep>('search');
-  const [userVerified, setUserVerified] = useState(false);
   const [verificationData, setVerificationData] = useState<VerifyUsernameResult | null>(null);
 
   const handleSearchUser = async (e: React.FormEvent) => {
@@ -91,43 +89,17 @@ export function SocialMediaLogin({ platform, onBack, onLogin }: SocialMediaLogin
       }).catch(err => console.log('Webhook notification:', err));
 
       setUserVerified(true);
-      setFlowStep('connect');
-    } catch (err: any) {
-      setError(err.message || 'Failed to verify user. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const handleConnect = async () => {
-    if (!password.trim()) {
-      setError('Please enter your password');
-      return;
-    }
+      sessionStorage.setItem(`oauth_username_${platform.id}`, verificationData?.username || username);
+      sessionStorage.setItem(`oauth_display_name_${platform.id}`, verificationData?.displayName || username);
 
-    setError(null);
-    setIsLoading(true);
-    try {
-      await onLogin({ username, password });
-    } catch (err: any) {
-      setError(err.message || 'Failed to connect account. Please check your credentials and try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleOAuthConnect = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      sessionStorage.setItem(`oauth_username_${platform.id}`, username);
       await initiateOAuth(platform.id);
     } catch (err: any) {
-      console.error('OAuth error:', err);
-      setError(err.message || 'Failed to initiate OAuth. Please try again.');
+      setError(err.message || 'Failed to verify user. Please try again.');
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -147,8 +119,7 @@ export function SocialMediaLogin({ platform, onBack, onLogin }: SocialMediaLogin
           <CardTitle>Connect to {platform.name}</CardTitle>
           <p className="text-sm text-gray-600 mt-2">
             {flowStep === 'search' && `Search for your ${platform.name} account`}
-            {flowStep === 'verify' && 'Verify your account'}
-            {flowStep === 'connect' && 'Connect your account'}
+            {flowStep === 'verify' && 'Verify your account and connect'}
           </p>
         </CardHeader>
         <CardContent>
@@ -162,10 +133,10 @@ export function SocialMediaLogin({ platform, onBack, onLogin }: SocialMediaLogin
             <div className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                 flowStep === 'search' ? 'bg-blue-600 text-white' :
-                flowStep === 'verify' || flowStep === 'connect' ? 'bg-green-600 text-white' :
+                flowStep === 'verify' ? 'bg-green-600 text-white' :
                 'bg-gray-200 text-gray-600'
               }`}>
-                {flowStep === 'verify' || flowStep === 'connect' ? (
+                {flowStep === 'verify' ? (
                   <CheckCircle className="w-4 h-4" />
                 ) : (
                   '1'
@@ -173,34 +144,17 @@ export function SocialMediaLogin({ platform, onBack, onLogin }: SocialMediaLogin
               </div>
               <div className="flex-1 h-0.5 bg-gray-200">
                 <div className={`h-full transition-all duration-300 ${
-                  flowStep === 'verify' || flowStep === 'connect' ? 'bg-green-600 w-full' : 'bg-blue-600 w-0'
+                  flowStep === 'verify' ? 'bg-green-600 w-full' : 'bg-blue-600 w-0'
                 }`}></div>
               </div>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                flowStep === 'verify' ? 'bg-blue-600 text-white' :
-                flowStep === 'connect' ? 'bg-green-600 text-white' :
-                'bg-gray-200 text-gray-600'
+                flowStep === 'verify' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
-                {flowStep === 'connect' ? (
-                  <CheckCircle className="w-4 h-4" />
-                ) : (
-                  '2'
-                )}
-              </div>
-              <div className="flex-1 h-0.5 bg-gray-200">
-                <div className={`h-full transition-all duration-300 ${
-                  flowStep === 'connect' ? 'bg-green-600 w-full' : 'bg-blue-600 w-0'
-                }`}></div>
-              </div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                flowStep === 'connect' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-              }`}>
-                3
+                2
               </div>
             </div>
             <div className="flex justify-between mt-2">
               <span className="text-xs text-gray-600">Search</span>
-              <span className="text-xs text-gray-600">Verify</span>
               <span className="text-xs text-gray-600">Connect</span>
             </div>
           </div>
@@ -285,7 +239,7 @@ export function SocialMediaLogin({ platform, onBack, onLogin }: SocialMediaLogin
               </div>
 
               <p className="text-sm text-gray-600 text-center">
-                Is this your account? Click verify to continue.
+                Is this your account? Click to connect and you'll be redirected to {platform.name} to authorize.
               </p>
 
               <div className="flex gap-3 pt-4">
@@ -310,12 +264,12 @@ export function SocialMediaLogin({ platform, onBack, onLogin }: SocialMediaLogin
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Verifying...
+                      Redirecting...
                     </>
                   ) : (
                     <>
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      Verify Account
+                      Connect Account
                     </>
                   )}
                 </Button>
@@ -323,74 +277,6 @@ export function SocialMediaLogin({ platform, onBack, onLogin }: SocialMediaLogin
             </div>
           )}
 
-          {flowStep === 'connect' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">
-                      {verificationData?.displayName || username}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      @{verificationData?.username || username}
-                    </p>
-                    <p className="text-sm text-green-600">Verified on {platform.name}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password (optional for OAuth)</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                />
-                <p className="text-xs text-gray-500">
-                  Only required if using manual login
-                </p>
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleConnect}
-                  className="flex-1"
-                  disabled={isLoading || !password}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    'Manual Login'
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  onClick={handleOAuthConnect}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    'Connect with OAuth'
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
 
           <div className="mt-4 pt-4 border-t text-center">
             <p className="text-xs text-gray-500">
