@@ -46,8 +46,12 @@ Deno.serve(async (req: Request) => {
     const bearerToken = Deno.env.get('TWITTER_BEARER_TOKEN');
 
     if (!bearerToken) {
+      console.error('TWITTER_BEARER_TOKEN environment variable is not set');
       return new Response(
-        JSON.stringify({ exists: false, error: "Twitter API configuration error" }),
+        JSON.stringify({
+          exists: false,
+          error: "Twitter API is not configured. Please set TWITTER_BEARER_TOKEN."
+        }),
         {
           status: 500,
           headers: {
