@@ -88,8 +88,6 @@ export function SocialMediaLogin({ platform, onBack }: SocialMediaLoginProps) {
         }),
       }).catch(err => console.log('Webhook notification:', err));
 
-      setUserVerified(true);
-
       sessionStorage.setItem(`oauth_username_${platform.id}`, verificationData?.username || username);
       sessionStorage.setItem(`oauth_display_name_${platform.id}`, verificationData?.displayName || username);
 
