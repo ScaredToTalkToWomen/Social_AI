@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface RequestBody {
   username: string;
+  bearerToken?: string;
 }
 
 interface VerifyResult {
@@ -27,7 +28,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { username }: RequestBody = await req.json();
+    const { username, bearerToken: providedToken }: RequestBody = await req.json();
 
     if (!username) {
       return new Response(
@@ -43,14 +44,14 @@ Deno.serve(async (req: Request) => {
     }
 
     const cleanUsername = username.replace('@', '');
-    const bearerToken = Deno.env.get('TWITTER_BEARER_TOKEN');
+    const bearerToken = providedToken || Deno.env.get('TWITTER_BEARER_TOKEN');
 
     if (!bearerToken) {
-      console.error('TWITTER_BEARER_TOKEN environment variable is not set');
+      console.error('TWITTER_BEARER_TOKEN not provided and environment variable is not set');
       return new Response(
         JSON.stringify({
           exists: false,
-          error: "Twitter API is not configured. Please set TWITTER_BEARER_TOKEN."
+          error: "Twitter API is not configured."
         }),
         {
           status: 500,

@@ -285,6 +285,7 @@ export async function verifyTwitterUsername(username: string): Promise<VerifyUse
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const twitterBearerToken = import.meta.env.VITE_TWITTER_BEARER_TOKEN;
 
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error('Supabase configuration missing');
@@ -298,7 +299,10 @@ export async function verifyTwitterUsername(username: string): Promise<VerifyUse
         'Authorization': `Bearer ${supabaseAnonKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({
+        username,
+        bearerToken: twitterBearerToken
+      }),
     });
 
     if (!response.ok) {
