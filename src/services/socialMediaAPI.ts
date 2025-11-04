@@ -1,5 +1,5 @@
 import { getValidToken } from './tokenManager';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 
 export interface PostContent {
   text: string;
@@ -286,22 +286,30 @@ export async function verifyTwitterUsername(username: string): Promise<VerifyUse
     const cleanUsername = username.replace('@', '');
     const twitterBearerToken = import.meta.env.VITE_TWITTER_BEARER_TOKEN;
 
-    const { data, error } = await supabase.functions.invoke('verify-twitter-username', {
-      body: {
+    const apiUrl = `${supabaseUrl}/functions/v1/verify-twitter-username`;
+
+    console.log('Calling edge function:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseAnonKey,
+      },
+      body: JSON.stringify({
         username: cleanUsername,
         bearerToken: twitterBearerToken
-      }
+      })
     });
 
-    if (error) {
-      console.error('Edge function error:', error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Edge function error:', response.status, errorText);
+      throw new Error(`Edge function failed: ${response.status}`);
     }
 
-    if (!data) {
-      throw new Error('No data returned from edge function');
-    }
-
+    const data = await response.json();
+    console.log('Edge function response:', data);
     return data;
   } catch (error: any) {
     console.error('verifyTwitterUsername error:', error);
