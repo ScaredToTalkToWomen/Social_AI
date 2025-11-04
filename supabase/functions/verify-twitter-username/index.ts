@@ -28,9 +28,15 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { username, bearerToken: providedToken }: RequestBody = await req.json();
+    console.log('Received request:', req.method, req.url);
+    
+    const requestBody = await req.json();
+    console.log('Request body:', JSON.stringify(requestBody));
+    
+    const { username, bearerToken: providedToken }: RequestBody = requestBody;
 
     if (!username) {
+      console.error('No username provided');
       return new Response(
         JSON.stringify({ exists: false, error: "Username is required" }),
         {
@@ -44,17 +50,20 @@ Deno.serve(async (req: Request) => {
     }
 
     const cleanUsername = username.replace('@', '');
-    const bearerToken = providedToken || Deno.env.get('TWITTER_BEARER_TOKEN');
+    console.log('Clean username:', cleanUsername);
+    
+    const bearerToken = providedToken;
+    console.log('Bearer token present:', !!bearerToken);
 
     if (!bearerToken) {
-      console.error('TWITTER_BEARER_TOKEN not provided and environment variable is not set');
+      console.error('No bearer token provided');
       return new Response(
         JSON.stringify({
           exists: false,
-          error: "Twitter API is not configured."
+          error: "Twitter API configuration is missing. Please provide a bearer token."
         }),
         {
-          status: 500,
+          status: 400,
           headers: {
             ...corsHeaders,
             "Content-Type": "application/json",
@@ -63,6 +72,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    console.log('Calling Twitter API for:', cleanUsername);
+    
     const response = await fetch(
       `https://api.twitter.com/2/users/by/username/${cleanUsername}`,
       {
@@ -73,8 +84,11 @@ Deno.serve(async (req: Request) => {
       }
     );
 
+    console.log('Twitter API response status:', response.status);
+
     if (!response.ok) {
       if (response.status === 404) {
+        console.log('Username not found:', cleanUsername);
         return new Response(
           JSON.stringify({
             exists: false,
@@ -96,7 +110,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           exists: false,
-          error: 'Failed to verify Twitter username',
+          error: `Twitter API error: ${response.status}`,
         }),
         {
           status: 200,
@@ -109,6 +123,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = await response.json();
+    console.log('Twitter API success:', JSON.stringify(data));
+    
     const result: VerifyResult = {
       exists: true,
       username: data.data.username,
@@ -125,6 +141,7 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     console.error('Error verifying Twitter username:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
 
     return new Response(
       JSON.stringify({
