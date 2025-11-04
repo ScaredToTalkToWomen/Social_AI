@@ -283,33 +283,17 @@ export interface VerifyUsernameResult {
 
 export async function verifyTwitterUsername(username: string): Promise<VerifyUsernameResult> {
   try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    const twitterBearerToken = import.meta.env.VITE_TWITTER_BEARER_TOKEN;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Supabase configuration missing');
-    }
-
-    const apiUrl = `${supabaseUrl}/functions/v1/verify-twitter-username`;
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabase.functions.invoke('verify-twitter-username', {
+      body: {
         username,
-        bearerToken: twitterBearerToken
-      }),
+        bearerToken: import.meta.env.VITE_TWITTER_BEARER_TOKEN
+      }
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to verify Twitter username');
+    if (error) {
+      throw error;
     }
 
-    const data = await response.json();
     return data;
   } catch (error: any) {
     return {
